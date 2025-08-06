@@ -1,0 +1,49 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C2 Dashboard</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; background: #f4f4f9; color: #333; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: #4CAF50; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        tr:hover { background-color: #ddd; }
+        a { color: #4CAF50; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>C2 Client Dashboard</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Client ID (Host)</th>
+                <th>User</th>
+                <th>Operating System</th>
+                <th>Last Seen (UTC)</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for id, client in clients.items() %}
+            <tr>
+                <td>{{ id }}</td>
+                <td>{{ client.info.user }}</td>
+                <td>{{ client.info.os }}</td>
+                <td>{{ client.last_seen }}</td>
+                <td><a href="{{ url_for('client_view', client_id=id) }}">Interact</a></td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5">No clients have checked in yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
+    

