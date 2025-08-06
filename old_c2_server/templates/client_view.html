@@ -16,6 +16,7 @@
         button { padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
         button:hover { background: #45a049; }
         hr { border: 0; height: 1px; background: #ddd; }
+        .command-item { list-style-type: none; padding: 5px 0; }
     </style>
 </head>
 <body>
@@ -25,7 +26,7 @@
 
         <div class="info-box">
             <h2>Client Information</h2>
-            <pre>{{ info }}</pre>
+            <pre>{{ info | tojson(indent=4) }}</pre>
         </div>
 
         <div class="command-box">
@@ -38,7 +39,7 @@
                 <h3>Pending Commands</h3>
                 <ul>
                 {% for cmd in pending_commands %}
-                    <li><code>{{ escape(cmd) }}</code></li>
+                    <li class="command-item"><code>{{ escape(cmd.command) }}</code> (ID: {{ cmd.id[:8] }})</li>
                 {% endfor %}
                 </ul>
             {% endif %}
@@ -48,10 +49,13 @@
             <h2>Command History</h2>
             {% for r in results %}
                 <p>
-                    <b>Command:</b> <code>{{ escape(r.command) }}</code><br>
+                    <b>Command ID:</b> <code>{{ r.command_id[:8] }}</code><br>
                     <b>Executed at (UTC):</b> {{ r.timestamp }}
                 </p>
                 <pre>{{ escape(r.output) }}</pre>
+                {% if r.error %}
+                    <pre style="color: red;"><b>Error:</b> {{ escape(r.error) }}</pre>
+                {% endif %}
                 <hr>
             {% else %}
                 <p>No results from this client yet.</p>
@@ -59,13 +63,13 @@
         </div>
     </div>
     <script>
-        // Auto-refresh the page every 5 seconds to check for new results
+        // Auto-refresh the page every 10 seconds to check for new results
         setInterval(function() {
             // Don't refresh if the user is currently typing a command
             if (!document.querySelector('input[name="command"]:focus')) {
                 window.location.reload();
             }
-        }, 5000);
+        }, 10000);
     </script>
 </body>
 </html>

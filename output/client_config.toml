@@ -1,0 +1,8 @@
+# C2 Client Configuration 
+[client] 
+server_address = "127.0.0.1" 
+server_port = 4444 
+reconnect_delay = 30 
+heartbeat_interval = 60 
+persistence_enabled = true 
+stealth_mode = true 

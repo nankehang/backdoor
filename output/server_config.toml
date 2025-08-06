@@ -1,0 +1,7 @@
+# C2 Server Configuration 
+[server] 
+bind_address = "0.0.0.0" 
+bind_port = 4444 
+rsa_key_size = 2048 
+heartbeat_timeout = 300 
+max_clients = 100 
