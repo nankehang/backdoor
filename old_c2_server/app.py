@@ -134,21 +134,62 @@ class C2TCPHandler(socketserver.BaseRequestHandler):
     def read_message(self):
         # This is a simplified implementation. A real-world scenario would need a more robust
         # way to frame messages (e.g., sending length prefixes).
-        data = self.request.recv(8192)
-        if not data:
+        try:
+            data = self.request.recv(8192)
+            if not data:
+                return None
+            return data
+        except ConnectionResetError:
+            logging.info(f"Connection reset by {self.client_address[0]}")
             return None
-        return data
+        except OSError as e:
+            logging.warning(f"Socket error when reading from {self.client_address[0]}: {e}")
+            return None
 
     def send_message(self, data):
-        self.request.sendall(data)
+        try:
+            self.request.sendall(data)
+        except ConnectionResetError:
+            logging.info(f"Connection reset when sending to {self.client_address[0]}")
+            raise
+        except OSError as e:
+            logging.warning(f"Socket error when sending to {self.client_address[0]}: {e}")
+            raise
 
     def perform_handshake(self):
         handshake_data = self.read_message()
-        if not handshake_data: return False
+        if not handshake_data: 
+            logging.warning(f"No handshake data received from {self.client_address[0]}")
+            return False
         
-        message = json.loads(handshake_data)
+        # Check if this looks like an HTTP request
+        if isinstance(handshake_data, bytes) and handshake_data.startswith(b'GET '):
+            logging.info(f"HTTP request detected from {self.client_address[0]}, likely a web browser")
+            return False
+        
+        try:
+            # Decode bytes to string if necessary
+            if isinstance(handshake_data, bytes):
+                handshake_str = handshake_data.decode('utf-8')
+            else:
+                handshake_str = handshake_data
+            
+            # Check if we received valid JSON data
+            if not handshake_str.strip():
+                logging.warning(f"Empty handshake data received from {self.client_address[0]}")
+                return False
+                
+            message = json.loads(handshake_str)
+        except json.JSONDecodeError as e:
+            logging.warning(f"Invalid JSON received during handshake from {self.client_address[0]}: {e}")
+            logging.debug(f"Raw data received: {handshake_data}")
+            return False
+        except UnicodeDecodeError as e:
+            logging.warning(f"Unable to decode handshake data from {self.client_address[0]}: {e}")
+            return False
+        
         if message.get("type") != "handshake_request":
-            logging.warning("Received non-handshake message during handshake phase.")
+            logging.warning(f"Received non-handshake message during handshake phase from {self.client_address[0]}: {message.get('type')}")
             return False
 
         client_info_data = message["client_info"]
@@ -177,11 +218,33 @@ class C2TCPHandler(socketserver.BaseRequestHandler):
 
     def exchange_session_key(self):
         session_key_data = self.read_message()
-        if not session_key_data: return False
+        if not session_key_data: 
+            logging.warning(f"No session key data received from {self.client_id}")
+            return False
 
-        message = json.loads(session_key_data)
+        try:
+            # Decode bytes to string if necessary
+            if isinstance(session_key_data, bytes):
+                session_key_str = session_key_data.decode('utf-8')
+            else:
+                session_key_str = session_key_data
+            
+            # Check if we received valid JSON data
+            if not session_key_str.strip():
+                logging.warning(f"Empty session key data received from {self.client_id}")
+                return False
+                
+            message = json.loads(session_key_str)
+        except json.JSONDecodeError as e:
+            logging.warning(f"Invalid JSON received during session key exchange from {self.client_id}: {e}")
+            logging.debug(f"Raw data received: {session_key_data}")
+            return False
+        except UnicodeDecodeError as e:
+            logging.warning(f"Unable to decode session key data from {self.client_id}: {e}")
+            return False
+        
         if message.get("type") != "session_key":
-            logging.warning(f"Expected session key from {self.client_id}, but got something else.")
+            logging.warning(f"Expected session key from {self.client_id}, but got: {message.get('type')}")
             return False
 
         encrypted_key_b64 = message["encrypted_aes_key"]
@@ -204,6 +267,12 @@ class C2TCPHandler(socketserver.BaseRequestHandler):
             
             try:
                 decrypted_payload = decrypt_aes(encrypted_request, self.session_key)
+                
+                # Ensure we have valid decrypted data
+                if not decrypted_payload:
+                    logging.warning(f"Empty decrypted payload from {self.client_id}")
+                    continue
+                    
                 message = json.loads(decrypted_payload)
                 message_type = message.get("type")
 
